@@ -25,7 +25,7 @@ class TestAuthenticator(TestCase):
         )
         run_async(self.auth.get_token)
         mock_post.assert_called_with(
-            data={"apiKey": "test123"},
+            headers={"Authorization": "Bearer test123"},
             url="https://portal.lancium.com/api/v1/access_tokens",
         )
 

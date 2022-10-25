@@ -4,7 +4,7 @@ from time import time
 
 class Authenticator(object):
     def __init__(self, api_key: str) -> None:
-        self.data = {"apiKey": api_key}
+        self.data = {"Authorization": f"Bearer {api_key}"}
         self.token = None
         self.token_expires_on = 0
         self._url = "https://portal.lancium.com/api/v1/access_tokens"
@@ -15,7 +15,7 @@ class Authenticator(object):
         if not (self.token and self.is_token_valid):
             token_request_time = time()
             async with httpx.AsyncClient() as client:
-                response = await client.post(url=self._url, data=self.data)
+                response = await client.post(url=self._url, headers=self.data)
                 response.raise_for_status()
                 self.token = response.headers.get("Authorization")
                 self.token_expires_on = token_request_time + 3600
