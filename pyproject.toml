@@ -30,6 +30,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.6.2"
 simple-rest-client = "<=1.0.8"  # last version to support Python3.6
+jsonref = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^5.0.4"
