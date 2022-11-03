@@ -29,12 +29,13 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.6.2"
-simple-rest-client = "<=1.0.8"  # last version to support Python3.6
+simple-rest-client = "0.5.4"  # version to support aiohttp, matching AsyncOpenStack client. client cannot be re-used with httpx.
 jsonref = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^5.0.4"
 black = "<=22.8.0"
+aioresponses = "^0.7.3"
 
 [build-system]
 requires = ["poetry-core"]

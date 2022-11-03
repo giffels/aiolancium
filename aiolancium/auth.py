@@ -1,4 +1,4 @@
-import httpx
+import aiohttp
 from time import time
 
 
@@ -11,14 +11,13 @@ class Authenticator(object):
 
     async def get_token(
         self,
-    ) -> str:  # Should be replace by async properties once available
+    ) -> str:  # Should be replaced by async properties once available
         if not (self.token and self.is_token_valid):
             token_request_time = time()
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url=self._url, headers=self.data)
-                response.raise_for_status()
-                self.token = response.headers.get("Authorization")
-                self.token_expires_on = token_request_time + 3600
+            async with aiohttp.ClientSession(raise_for_status=True) as session:
+                async with session.post(url=self._url, headers=self.data) as response:
+                    self.token = response.headers.get("Authorization")
+                    self.token_expires_on = token_request_time + 3600
         return self.token
 
     @property
