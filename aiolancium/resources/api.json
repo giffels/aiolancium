@@ -1,0 +1,3726 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "version": "1.5.0",
+    "title": "Lancium Compute",
+    "termsOfService": "https://portal.lancium.com/about/terms_of_service",
+    "contact": {
+      "email": "support@lancium.com"
+    },
+    "x-logo": {
+      "url": "https://lancium.github.io/compute-api-docs/Lancium-Logo_black.png",
+      "href": "https://lancium.github.io/compute-api-docs/"
+    },
+    "description": "REST API for working with Lancium Compute's High-Throughput Computing grid.\n\nAdditional documentation:\n  * [Lancium-provided Singularity images](https://lancium.github.io/compute-api-docs/lancium_images.html)\n  * [Documentation for the Lancium Compute command line client](https://lancium.github.io/compute-api-docs/lancium_cli.html)\n\nTutorials on running specific applications on the Lancium Compute Grid:\n  * [BLAST](https://lancium.github.io/compute-api-docs/tutorials/blast.html)\n\n\n*Changelog*\n\nv1.5.0\n  * Added ability to request an entire node be allocated for the user's job.\n  * Added support for viewing the contents of the job working directory while the job is executing.\n  * Added support for downloading/tailing a file from a running job's working directory.\n  * Added support for uploading a file into a running job's working directory.\n  * Added a new `X-Object-Type` header when getting a path from persistent storage or a job's working directory to indicate whether a file or directory is being returned\n\nv1.4.0\n  * Added initial support for running MPI jobs on the Lancium Compute Grid. Specifically, `mpi`, `tasks`, `tasks_per_node`, and `mpi_type` attributes were added to the job resources object and a new MPI type resources endpoint is available to list supported MPI versions.\n  * Added an `environment` array parameter to jobs and images to allow the configuration of environment variables to passed into the job execution context\n  * Added a new `destination` parameter to jobs' `output_file` array to indicate a path within the user's persistent data area to which the output file should be moved after job completion.\n  * Added new `X-Current-API-Version` and `X-Deprecated-API-Used` headers to the access token response to enable update alerts within the Lancium CLI. These headers are actually delivered with every API response.\n  * Added a 409 return code for job termination when the job is not running or queued.\n  * Added a 409 return code for image rebulding when the image is in the process of being build already.\n  * Added a 301 return code for job output downloading to indicate that the file is available from the persistent data area\n\nv1.3.0\n  * Added a `force` parameter to allow a new data file to overwrite an existing one\n  * Added a `recursive` query parameter for deleting a data folder and its contents\n  * Added a 202 return code for job output and data downloads to indicate that download processing is still continuing and that the request should be retried again after a delay\n  * Added a 204 return code for job output and data downloads to indicate that the download exists but is empty\n  * Added a 400 return code for data creation to indicate that there was a problem with the request that made it unacceptable\n  * Corrects the response body of some error codes for data creation\n  * Added a GET route to enumerate job resource defaults\n  * Added a GET route to enumerate job resource limits\n\nv1.2.0\n  * Move from a numerical QOS to a set of enumerated levels\n  * Clarifies that vCPUs are always provisioned in even numbers\n  * Clarifies that vCPUs and memory are always provisioned in a 2:4 ratio\n  * Added a GET route to enumerate QOS levels\n  * Added a 400 return code for job creation and updates that fail certain validation rules\n  * Added a 402 return code for job submissions that require updated billing information\n\nv1.1.0\n  * Added upload_complete and chunks_received as returned values on all upload endpoints\n  * Added a 422 return code for uploads of input files or images with a source type that don't allow uploading\n  * Added a GET route for input files to check the upload status\n  * Added a POST route for input files to reset the upload status\n\nv1.0.0\n  * Initial public release\n"
+  },
+  "tags": [
+    {
+      "name": "Access Tokens",
+      "description": "Create short-lived acess tokens to access API endpoints"
+    },
+    {
+      "name": "Jobs",
+      "description": "Create and manage jobs running on the Lancium Compute grid"
+    },
+    {
+      "name": "Data",
+      "description": "Persistently store data for use in Lancium Compute jobs\n\nThe Datum object and API represents a hierarchical storage space for files that are uploaded to Lancium Compute to be stored persistently and used across multiple jobs.\n\nAll endpoints return an HTTP 404 error if passed a file path that does not exist in the user’s data area.\n"
+    },
+    {
+      "name": "Images",
+      "description": "Create custom container images to run Lancium Compute jobs\n\nThe image object represents the computational environment that is set up as part of job execution; specifically, a Singularity container that a user’s job will execute within.\n"
+    },
+    {
+      "name": "Resources",
+      "description": "Retrieve information about available resource types such as GPUs"
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://portal.lancium.com/api/v1"
+    }
+  ],
+  "paths": {
+    "/access_tokens": {
+      "post": {
+        "tags": [
+          "Access Tokens"
+        ],
+        "summary": "Issue new token",
+        "description": "Access tokens are issued in JWT format with a 60 minute validity",
+        "operationId": "create_access_token",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Authorization": {
+                "description": "Newly issued access token",
+                "schema": {
+                  "type": "string",
+                  "format": "Bearer ACCESS_TOKEN"
+                }
+              },
+              "X-Current-API-Version": {
+                "description": "Version number of the most current API",
+                "schema": {
+                  "type": "string",
+                  "format": "<major>.<minor>.<patch>",
+                  "example": "1.4.0"
+                }
+              },
+              "X-Deprecated-API-Used": {
+                "description": "Indicates if the current request is using a Major version of the API that is deprecated",
+                "schema": {
+                  "type": "string",
+                  "format": "true | false"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {}
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "The CLI takes care of generating\nand refreshing access tokens as\nlong as the API Key is configured.\n\nvia CLI flag\n------------\nlcli --api-key <API_KEY> ...\n\nvia environment\n---------------\nLANCIUM_API_KEY=<API_KEY> lcli ...\n\nvia config file\n---------------\nin ~/.lancium/lancium.conf add:\nLANCIUM_API_KEY=<API_KEY>\n"
+          }
+        ]
+      }
+    },
+    "/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List Jobs",
+        "description": "List all jobs belonging to the user and their status",
+        "operationId": "show_jobs",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/jobs"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job show\n"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Job",
+        "description": "Create a new job to execute on the Lancium Compute grid.\n\nAll fields listed as required are only required for the job to be submitted. They _do not_ need to be included in each call.\n",
+        "operationId": "create_job",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/invalid_job"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/job_request"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job create\n\n--spec <spec.json>\n\n--name (-n) <name>\n--notes (--description) (-d) <description>\n--account <account>\n--qos <qos>\n--command <command_line>\n--image <image>\n--max-run-time <max_run_time>\n--expected-run-time <expected_run_time>\n\n# Resource specification flags\n--cores (--core-count) <num_cores>\n--mem (--ram) <memory>\n--gpu-count (--gpus) <num_gpus>\n--gpu (--gpu-type) <gpu>\n--scratch (--disk) <scratch>\n\n--output <filename> # can specify multiple times\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Show Job",
+        "description": "Show all the details for a specified job",
+        "operationId": "show_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job to be show",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/job"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job show {id}\n"
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Update Job",
+        "description": "Update the details of the specified job.\n\nAll fields listed as required are only required for the job to be submitted. They _do not_ need to be included in each call.\n",
+        "operationId": "update_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job to update",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/invalid_job"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_job"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/job"
+                  },
+                  {
+                    "$ref": "#/components/schemas/job_fields"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job update {id}\n\n--spec <spec.json>\n\n--name (-n) <name>\n--notes (--description) (-d) <description>\n--account <account>\n--qos <qos>\n--command <command_line>\n--image <image>\n--max-run-time <max_run_time>\n--expected-run-time <expected_run_time>\n\n# Resource specification flags\n--cores (--core-count) <num_cores>\n--mem (--ram) <memory>\n--gpu-count (--gpus) <num_gpus>\n--gpu (--gpu-type) <gpu>\n--scratch (--disk) <scratch>\n\n--output <filename> # can specify multiple times\n"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete Job",
+        "description": "Delete the specified job.\n",
+        "operationId": "delete_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job to delete",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job delete {id}\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}/data": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create Input Data File for Job",
+        "description": "Create a new input file record associated with the selected job.\n\nInput file creation is a one-shot operation. If the attributes of an input file need to be changed, delete the existing input file record and create a new one.\n",
+        "operationId": "create_input_file",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/input_file"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_job"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/input_file"
+                  },
+                  {
+                    "$ref": "#/components/schemas/input_file_fields"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job input add {id}\n\n--cached\n\n# one of the three must be specified\n--file <file_path>\n--data <file_path>\n--url <url>\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}/data/{data-id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Input Data File for Job",
+        "description": "Get the upload status of an input data file.\n",
+        "operationId": "get_input_file",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "data-id",
+            "in": "path",
+            "description": "The id of the input file to upload",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/input_file"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job input show {id}\n"
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Upload Input Data File",
+        "description": "Upload input files with the 'file' source_type\n\nIn order to allow chunked, resumable file uploads, the request must include the ‘Content-Length’ and ‘Upload-Offset’ headers to indicate the size and offset in the file of the current chunk. In addition, an ‘Upload-Checksum’ header may be included in the request which will be compared to the checksum of the chunk as received to ensure the integrity of the transfer.\n\nChunks can be any size, but 32MB chunks are recommended as optimal.\n\nIf the MD5 checksum of the received body doesn’t match the value in an included ‘Upload-Checksum’ header, then the uploaded chunk will be discarded and an HTTP 412 error will be returned. If no ‘Content-Length’ header is included, the server will return an HTTP 411 error. If a chunk is uploaded to a file that is considered complete already or is part of a job that is already submitted, an HTTP 409 error will be returned.\n",
+        "operationId": "upload_input_file",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "data-id",
+            "in": "path",
+            "description": "The id of the input file to upload",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/content_length"
+          },
+          {
+            "$ref": "#/components/parameters/upload_offset"
+          },
+          {
+            "$ref": "#/components/parameters/upload_checksum"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": true,
+                  "chunks_received": [
+                    [
+                      1,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": false,
+                  "chunks_received": [
+                    [
+                      1,
+                      1024
+                    ],
+                    [
+                      2048,
+                      4096
+                    ],
+                    [
+                      185344,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_job"
+          },
+          "411": {
+            "$ref": "#/components/responses/missing_content_length"
+          },
+          "412": {
+            "$ref": "#/components/responses/checksum_mismatch"
+          },
+          "422": {
+            "$ref": "#/components/responses/invalid_upload_type"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "Handled automatically by the CLI\nwhen a job input file is added\nwith the --file flag\n"
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete Input File for Job",
+        "description": "Delete the specified Input File\n",
+        "operationId": "delete_input_file",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the desired job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "data-id",
+            "in": "path",
+            "description": "The id of the input file to delete",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_job"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job input delete {id}\n\n# one of these must be specified\n--all # delete all input data\n--data-id (--input-id) {data-id} # delete specific input data\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}/data/{data-id}/reupload": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Restart Input File Upload",
+        "description": "Reset input file upload process to allow new input file data to be uploaded.\n\nSince the PATCH route will reject uploads to an input file that it considers completed, this route allows an input file to be reset to a state where new input file data is able to be uploaded.\n",
+        "operationId": "reupload_input_data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "data-id",
+            "in": "path",
+            "description": "The id of the input file to upload",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/input_file"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Can't re-upload an input file with a source type of 'data' or 'url'",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/jobs/{id}/submit": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Submit Job",
+        "description": "Submit the specified job for execution\n\nIf the job specification is valid and contains all the required attributes, it will be submitted to the Lancium Compute grid for execution. If the grid scheduler determines that it can't complete the job in a timely fashion and meet the requested QOS, the job submission will be rejected with a 503 error. The submission can either be tried a later time or the QOS can be adjusted down.\n",
+        "operationId": "submit_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job to be show",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/invalid_job"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "402": {
+            "description": "Account billing information required before submitting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_job"
+          },
+          "503": {
+            "description": "Requested QOS not achievable. Retry later or adjust QOS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job submit {id}\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}/terminate": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Terminate Job",
+        "description": "Terminate the specified job prior to completion\n\nJobs that are still in the execution queue will be removed. Jobs that are already executing will be terminated, but no output files will be captured and made available for download. Jobs in all other states will return an error.\n",
+        "operationId": "terminate_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the job to be terminated",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "description": "Unable to terminate a job that in not queued or running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job terminate {id}\n"
+          }
+        ]
+      }
+    },
+    "/jobs/{id}/working_directory/": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create an Object in the Job Working Directory",
+        "description": "Create a new item in working directory of a running job.\n\nIn addition to being uploaded, the new item can be downloaded from a URL or copied from an existing file or directory in Lancium Compute storage.\n\nAny parent directories to the new data item that don't currently exist will automatically be created.\n\nTrying to create a new file at a path location where one already exists will fail unless the `force` option is included as part of the create call. In that case, the new file will overwrite the old one.\n",
+        "operationId": "create_working_directory_data",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad_request"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/item_exists_or_not_running"
+          },
+          "422": {
+            "$ref": "#/components/responses/no_directory_info"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data_item"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/jobs/{id}/working_directory/{file-path}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Data from Job Working Directory",
+        "description": "Get information on a file or folder inside the working directory of a running job.\n\nIf the file path passed to the API represents a directory, the response body will include an array with the contents of the directory.\n\nIf the file path represents a file, the response body will be a byte stream of the file contents. A 202 response code indicates the download is still being processed and not ready for transfer yet. In this case the request should be re-issued after a delay to retry the download. A 204 response code indicates that the file exists, but is empty.\n\nTo simulate the tailing of a file, use the `Range` header to request some number of bytes at the end of the file. For acceptable performance, limit tail requests to under 50KB. Additionally, this method only works properly with text files; Binary data may not transfer correctly.\n",
+        "operationId": "get_working_directory_data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the running job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          },
+          {
+            "$ref": "#/components/parameters/range"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/file_download_or_directory"
+          },
+          "202": {
+            "$ref": "#/components/responses/still_processing_download"
+          },
+          "204": {
+            "$ref": "#/components/responses/no_content"
+          },
+          "206": {
+            "$ref": "#/components/responses/partial_file_download"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/item_exists_or_not_running"
+          },
+          "416": {
+            "$ref": "#/components/responses/range_not_satisfiable"
+          },
+          "503": {
+            "$ref": "#/components/responses/temporarily_unavailable"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      },
+      "patch": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Upload Data File to Job Working Directory",
+        "description": "Upload file contents of a Lancium Compute data item with the 'file' source_type\n\nIn order to allow chunked, resumable file uploads, the request must include the ‘Content-Length’ and ‘Upload-Offset’ headers to indicate the size and offset in the file of the current chunk. In addition, an ‘Upload-Checksum’ header may be included in the request which will be compared to the checksum of the chunk as received to ensure the integrity of the transfer.\n\nChunks can be any size, but 32MB chunks are recommended as optimal.\n\nIf the MD5 checksum of the received body doesn’t match the value in an included ‘Upload-Checksum’ header, then the uploaded chunk will be discarded and an HTTP 412 error will be returned. If no ‘Content-Length’ header is included, the server will return an HTTP 411 error. If a chunk is uploaded to a file that is considered complete already, an HTTP 409 error will be returned.\n",
+        "operationId": "upload_working_directory_data_file",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          },
+          {
+            "$ref": "#/components/parameters/content_length"
+          },
+          {
+            "$ref": "#/components/parameters/upload_offset"
+          },
+          {
+            "$ref": "#/components/parameters/upload_checksum"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": true,
+                  "chunks_received": [
+                    [
+                      1,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": false,
+                  "chunks_received": [
+                    [
+                      1,
+                      1024
+                    ],
+                    [
+                      2048,
+                      4096
+                    ],
+                    [
+                      185344,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_completed_upload"
+          },
+          "411": {
+            "$ref": "#/components/responses/missing_content_length"
+          },
+          "412": {
+            "$ref": "#/components/responses/checksum_mismatch"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/jobs/{id}/output/{file-path}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job Output",
+        "description": "Download an available output file from a completed job.\n\nA 202 response code indicates the download is still being processed and not ready for transfer yet. In this case the request should be re-issued after a delay to retry the download.  A 204 response code indicates that the file exists, but is empty.\n",
+        "operationId": "download_job_output",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the finished job",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "file-path",
+            "in": "path",
+            "description": "The name of the output file to download",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/range"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/file_download"
+          },
+          "202": {
+            "$ref": "#/components/responses/still_processing_download"
+          },
+          "204": {
+            "$ref": "#/components/responses/no_content"
+          },
+          "206": {
+            "$ref": "#/components/responses/partial_file_download"
+          },
+          "301": {
+            "description": "Output file staged to data area and available from there",
+            "headers": {
+              "Location": {
+                "description": "Data API URL to request output file",
+                "schema": {
+                  "type": "uri"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "416": {
+            "$ref": "#/components/responses/range_not_satisfiable"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli job output show {id}\n\nlcli job output get {id}\n\n# at least one of these must be specified\n--view # show file contents\n--save <download_path> # downloads files to path\n\n# one of these must be specified\n--all # retrieve all output files\n--file <filename> # get a specific output file\n"
+          }
+        ]
+      }
+    },
+    "/data/": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Create Stored Data",
+        "description": "Create a new item in Lancium Compute data storage.\n\nIn addition to being uploaded, a new item can be downloaded from a URL or copied from an existing file or directory in Lancium Compute storage.\n\nAny parent directories to the new data item that don't currently exist will automatically be created.\n\nTrying to create a new file at a path location where one already exists will fail unless the `force` option is included as part of the create call. In that case, the new file will overwrite the old one.\n\nMove semantics can be emulated by calling DELETE on the old file path after copying to the new path.\n",
+        "operationId": "create_data_item",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad_request"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/item_exists"
+          },
+          "422": {
+            "$ref": "#/components/responses/no_directory_info"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/data_item"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/data/{file-path}": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get Stored Data",
+        "description": "Get information on a file or folder stored in Lancium Compute storage.\n\nIf the file path passed to the API represents a directory, the response body will include an array with the contents of the directory.\n\nIf the file path represents a file, the response body will be a byte stream of the file contents. A 202 response code indicates the download is still being processed and not ready for transfer yet. In this case the request should be re-issued after a delay to retry the download. A 204 response code indicates that the file exists, but is empty.\n",
+        "operationId": "get_data",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          },
+          {
+            "$ref": "#/components/parameters/range"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/file_download_or_directory"
+          },
+          "202": {
+            "$ref": "#/components/responses/still_processing_download"
+          },
+          "204": {
+            "$ref": "#/components/responses/no_content"
+          },
+          "206": {
+            "$ref": "#/components/responses/partial_file_download"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "416": {
+            "$ref": "#/components/responses/range_not_satisfiable"
+          },
+          "503": {
+            "$ref": "#/components/responses/temporarily_unavailable"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      },
+      "head": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get Info on Stored File",
+        "description": "Get information on a file stored in Lancium Compute storage.\n\nIf the file path passed to the API represents a directory, an HTTP 422 error will be returned\n\nIf the file path represents a file, the response headers will contain the file information\n",
+        "operationId": "get_file_info",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/file_info"
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "422": {
+            "$ref": "#/components/responses/no_directory_info"
+          },
+          "503": {
+            "$ref": "#/components/responses/temporarily_unavailable"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      },
+      "patch": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Upload Data File",
+        "description": "Upload file contents of a Lancium Compute data storage item with the 'file' source_type\n\nIn order to allow chunked, resumable file uploads, the request must include the ‘Content-Length’ and ‘Upload-Offset’ headers to indicate the size and offset in the file of the current chunk. In addition, an ‘Upload-Checksum’ header may be included in the request which will be compared to the checksum of the chunk as received to ensure the integrity of the transfer.\n\nChunks can be any size, but 32MB chunks are recommended as optimal.\n\nIf the MD5 checksum of the received body doesn’t match the value in an included ‘Upload-Checksum’ header, then the uploaded chunk will be discarded and an HTTP 412 error will be returned. If no ‘Content-Length’ header is included, the server will return an HTTP 411 error. If a chunk is uploaded to a file that is considered complete already, an HTTP 409 error will be returned.\n",
+        "operationId": "upload_data_file",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          },
+          {
+            "$ref": "#/components/parameters/content_length"
+          },
+          {
+            "$ref": "#/components/parameters/upload_offset"
+          },
+          {
+            "$ref": "#/components/parameters/upload_checksum"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": true,
+                  "chunks_received": [
+                    [
+                      1,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": false,
+                  "chunks_received": [
+                    [
+                      1,
+                      1024
+                    ],
+                    [
+                      2048,
+                      4096
+                    ],
+                    [
+                      185344,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_completed_upload"
+          },
+          "411": {
+            "$ref": "#/components/responses/missing_content_length"
+          },
+          "412": {
+            "$ref": "#/components/responses/checksum_mismatch"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "delete": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete Data Item",
+        "description": "Delete the specified Data Item\n",
+        "operationId": "delete_data_item",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/data_file_path"
+          },
+          {
+            "name": "recursive",
+            "in": "query",
+            "description": "recursively delete children if this data object is a folder",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_delete_non_empty_directory"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/images": {
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Create a new Image",
+        "description": "Create a new Image to be used as an execution environment for jobs in the Lancium Compute grid.\n",
+        "operationId": "create_image",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/image"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to create image due to invalid attributes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "errors": {
+                      "type": "object",
+                      "properties": {
+                        "INVALID_ATTRIBUTE_NAME": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "description": "Text description of error in INVALID_ATTRIBUTE_NAME"
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  },
+                  "example": {
+                    "errors": {
+                      "name": [
+                        "must be present"
+                      ],
+                      "size": [
+                        "must be present if source_type is 'singularity_image' or 'docker_image' and source_url is not specified"
+                      ],
+                      "source_url": [
+                        "must be present if source_type is 'singularity_image' or 'docker_image' and size is not specified"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "409": {
+            "$ref": "#/components/responses/image_exists"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/image_item"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/images/{image-path}": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "List Image Information",
+        "description": "List the available images and get image information.\n\nIf the path passed to this endpoint represents an image, the image's data will be returned; otherwise, an array will be returned with summary information on all the images contained in the given path.\n\nIf no image path is included in the request, the endpoint returns every image available to the user. Images that are available to, but not owned by the user, will only be returned if they are in a ‘ready’ state. Images owned by the user will always be returned regardless of the state.\n",
+        "operationId": "list_image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/image_file_path"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/image"
+                    },
+                    {
+                      "$ref": "#/components/schemas/image_list"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/no_permissions"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      },
+      "put": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Update an Image",
+        "description": "Update an image's information or build details.\n\nUpdating the build script or source URL for an image does not automatically rebuild it. The rebuild route must be called manually to initiate a rebuild.\n",
+        "operationId": "update_image",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/image"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to update image due to invalid attributes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "errors": {
+                      "type": "object",
+                      "properties": {
+                        "INVALID_ATTRIBUTE_NAME": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "description": "Text description of error in INVALID_ATTRIBUTE_NAME"
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  },
+                  "example": {
+                    "errors": {
+                      "name": [
+                        "must be present"
+                      ],
+                      "size": [
+                        "must be present if source_type is 'singularity_image' or 'docker_image' and source_url is not specified"
+                      ],
+                      "source_url": [
+                        "must be present if source_type is 'singularity_image' or 'docker_image' and size is not specified"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/image_item"
+              }
+            }
+          },
+          "required": false
+        }
+      },
+      "patch": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Upload Image Data",
+        "description": "Upload contents of a Docker or Singularity image for use by an image with source_type of 'singularity_image' or 'docker_image'\n\nIn order to allow chunked, resumable file uploads, the request must include the ‘Content-Length’ and ‘Upload-Offset’ headers to indicate the size and offset in the file of the current chunk. In addition, an ‘Upload-Checksum’ header may be included in the request which will be compared to the checksum of the chunk as received to ensure the integrity of the transfer.\n\nChunks can be any size, but 32MB chunks are recommended as optimal.\n\nIf the MD5 checksum of the received body doesn’t match the value in an included ‘Upload-Checksum’ header, then the uploaded chunk will be discarded and an HTTP 412 error will be returned. If no ‘Content-Length’ header is included, the server will return an HTTP 411 error. If a chunk is uploaded to a image that is considered complete already, an HTTP 409 error will be returned.\n",
+        "operationId": "upload_image_file",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/image_file_path"
+          },
+          {
+            "$ref": "#/components/parameters/content_length"
+          },
+          {
+            "$ref": "#/components/parameters/upload_offset"
+          },
+          {
+            "$ref": "#/components/parameters/upload_checksum"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": true,
+                  "chunks_received": [
+                    [
+                      1,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/file_upload"
+                },
+                "example": {
+                  "checksum": "d3b07384d113edec49eaa6238ad5ff00",
+                  "upload_complete": false,
+                  "chunks_received": [
+                    [
+                      1,
+                      1024
+                    ],
+                    [
+                      2048,
+                      4096
+                    ],
+                    [
+                      185344,
+                      186435
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/unable_to_modify_completed_upload"
+          },
+          "411": {
+            "$ref": "#/components/responses/missing_content_length"
+          },
+          "412": {
+            "$ref": "#/components/responses/checksum_mismatch"
+          },
+          "422": {
+            "$ref": "#/components/responses/invalid_upload_type"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "delete": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Delete Image",
+        "description": "Delete the image at the specified path\n",
+        "operationId": "delete_image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/image_file_path"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/images/{image-path}/reupload": {
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Restart Image Upload",
+        "description": "Reset image upload process to allow new image data to be uploaded.\n\nSince the PATCH route will reject uploads to an image that it considers completed, this route allows an image to be reset to a state where new image data is able to be uploaded.\n\nWhen this route is called the image will be removed from 'ready' status and should be followed up with one or more PATCH calls to upload the new image data.\n\n*This operation is only valid for images of type 'singularity_image' or 'docker_image' that were uploaded via the API.*\n",
+        "operationId": "reupload_image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/image_file_path"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Can't re-upload an image downloaded from a URL or built from a build file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/images/{image-path}/rebuild": {
+      "post": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Rebuild image",
+        "description": "Rebuild an image using its current configuration.\n\nThis endpoint triggers a rebuilding of the specified image. The image will be removed from the 'ready' state and, if a source_url has been specified, the source will be re-downloaded again before the image is rebuilt. Images that are currrently building can't be rebuilt.\n\n*This operation is not valid for images of type 'singularity_image' or 'docker_image' that were uploaded via the API.*\n",
+        "operationId": "rebuild_image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/image_file_path"
+          }
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Can't rebuild an uploaded image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/not_found"
+          },
+          "409": {
+            "description": "Unable to rebuild a image that is currently being built",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        }
+      }
+    },
+    "/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List Resources",
+        "description": "Show all available resources types.\n\nIndividual resources types can be queried at /resources/{name}\n",
+        "operationId": "show_resources",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "Name of the resource type"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Short explanation of resource type"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show\n"
+          }
+        ]
+      }
+    },
+    "/resources/gpus": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List GPUs",
+        "description": "Show all available GPU Options\n",
+        "operationId": "show_gpus",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gpus": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Identifier string to use when requesting this GPU"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "GPU Name"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Details on GPU capabilities"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show --type gpus\n"
+          }
+        ]
+      }
+    },
+    "/resources/qos": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List QOS Levels",
+        "description": "Show all available levels of QOS\n",
+        "operationId": "show_gpus",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "qos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Identifier string to use when requesting this level of QOS"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Details on the level of service"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show --type qos\n"
+          }
+        ]
+      }
+    },
+    "/resources/mpi": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List Supported MPI versions",
+        "description": "Show all available, supported versions of MPI\n",
+        "operationId": "show_mpi",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mpi_versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Identifier string to use when requesting this MPI version"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Details on the MPI version"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show --type mpi\n"
+          }
+        ]
+      }
+    },
+    "/resources/defaults": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List Job Defaults",
+        "description": "Show any applicable default values on job resource requests.\n",
+        "operationId": "show_defaults",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "defaults": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "resource": {
+                            "type": "string",
+                            "description": "Name of resource"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "default value of that resource if not specified"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show --type defaults\n"
+          }
+        ]
+      }
+    },
+    "/resources/limits": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List Job Resource Limits",
+        "description": "Show any applicable limits on job resource requests.\n\nResource limits are grouped into sets based on the availability of various configurations of resources.\n",
+        "operationId": "show_limits",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "limits": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "resource": {
+                              "type": "string",
+                              "description": "Name of limited resource"
+                            },
+                            "type": {
+                              "type": "string",
+                              "description": "If the resource comes in different types, the type that this limit applies to"
+                            },
+                            "value": {
+                              "type": "string",
+                              "description": "maximum value of that resource"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/not_authorized"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/blank_body"
+              }
+            }
+          },
+          "required": false
+        },
+        "x-code-samples": [
+          {
+            "lang": "Shell",
+            "source": "lcli resources show --type limits\n"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "API Keys can be generated from the user profile page on the Lancium Compute portal. They are issued in JWT format and can have a user-defined expiration date."
+      },
+      "accessToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access Tokens are issued via the /access_token API endpoint. They are issued in JWT format and are valid for 60 minutes."
+      }
+    },
+    "schemas": {
+      "error_array": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "blank_body": {
+        "oneOf": [
+          {
+            "type": "Empty JSON object"
+          },
+          {
+            "type": "Blank Body"
+          }
+        ],
+        "example": {}
+      },
+      "status": {
+        "type": "string",
+        "readOnly": true,
+        "description": "Job status in the Lancium Compute Grid",
+        "enum": [
+          "created",
+          "submitted",
+          "queued",
+          "ready",
+          "running",
+          "error",
+          "finished",
+          "delete pending"
+        ]
+      },
+      "jobs": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Auto-generated globally unique primary key for referencing this job"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/status"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "example": {
+          "jobs": [
+            {
+              "id": 10,
+              "name": "test job 1",
+              "status": "finished"
+            },
+            {
+              "id": 11,
+              "name": "test job 2",
+              "status": "running"
+            },
+            {
+              "id": 12,
+              "name": "test job 1",
+              "status": "created"
+            }
+          ]
+        }
+      },
+      "input_file_fields": {
+        "type": "object",
+        "description": "Represents a file necessary as input to the job execution.",
+        "required": [
+          "source_type",
+          "source",
+          "name",
+          "size"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Auto-generated globally unique primary key for referencing this input file.\n\nOnly valid in a request body when updating the input file record as part of an update to its associated job.\n"
+          },
+          "source_type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "file",
+              "data",
+              "url"
+            ],
+            "description": "Indicates where the input file will originate from.\n\n'file' - the file will be uploaded via the API\n\n'data' - the file is already staged into Lancium Compute data storage\n\n'url' - the file will be downloaded from the internet\n"
+          },
+          "source": {
+            "type": "string",
+            "nullable": true,
+            "description": "Indicates where the source location of the file is based on the 'source_type' field.\n\n'file' - name of the file being uploaded\n\n'data' - file path to the source file in Lancium Compute data storage\n\n'url' - url to download file from\n"
+          },
+          "cache": {
+            "type": "boolean",
+            "default": false,
+            "description": "Indicates whether the input file should be cached in the job execution environment. Cached files have faster access, but are read-only."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the name of this file should be in the job execution environment."
+          },
+          "size": {
+            "type": "integer",
+            "writeOnly": true,
+            "description": "The size in bytes of the file to be uploaded. **This field is only required (or valid) for input files with a source_type of 'file'**"
+          },
+          "upload_complete": {
+            "type": "boolean",
+            "default": false,
+            "readOnly": true,
+            "description": "Indicates whether the system believes that this file has been fully uploaded.\n\n**Only returned for input files with a source type of 'file'**\n"
+          },
+          "chunks_received": {
+            "type": "array",
+            "description": "Array of byte ranges already received.\n\nEach byte range is an array with the format [start_byte, end_byte]\n\n**Only returned for input files with a source type of 'file'**\n",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_file_fields": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "nullable": true,
+            "readOnly": true,
+            "description": "The final size of the output file after job execution."
+          },
+          "available": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether this output file was found in the job execution environment and is available for download."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the file to look for and return from the job execution environment when execution is complete."
+          },
+          "destination": {
+            "type": "string",
+            "nullable": true,
+            "description": "The path within the user's persistent data area into which the output file should be moved after job execution"
+          }
+        },
+        "additionalProperties": false
+      },
+      "environment_variables": {
+        "type": "object",
+        "description": "Represents an individual environment variable to be set",
+        "required": [
+          "variable",
+          "value"
+        ],
+        "properties": {
+          "variable": {
+            "type": "string",
+            "description": "The name of the environment variable"
+          },
+          "value": {
+            "type": "string",
+            "description": "What value the variable should be set to inside the job execution environment"
+          }
+        },
+        "additionalProperties": false
+      },
+      "job_fields": {
+        "type": "object",
+        "required": [
+          "name",
+          "qos",
+          "image",
+          "command_line",
+          "max_run_time"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Auto-generated globally unique primary key for referencing this job"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Job name for display purposes"
+          },
+          "status": {
+            "$ref": "#/components/schemas/status"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional job information and details"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional accounting or cost-center information. Passed through to job's invoice line item along with job name."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Date of job creation in ISO 8601 format"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Date of last job update in ISO 8601 format"
+          },
+          "submitted_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Date that job was submitted for execution in ISO 8601 format"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Date that job was completed in ISO 8601 format"
+          },
+          "qos": {
+            "type": "string",
+            "nullable": true,
+            "description": "Quality of service level requested. Lower QOS values will result in discounts from the standard core-hour cost. The current QOS tiers are:\n\n  * `high` - Jobs at this QOS will be scheduled and running at least 90% of the time during any particular period.\n  * `medium` - Jobs at this QOS will be scheduled and running approximately 50% of the time during any particular period.\n  * `low` - Jobs at this QOS will be scheduled and running approximately 25% of the time during any particular period.\n  * `best_effort` - Jobs at this QOS will be scheduled and running only when there are free resources available that can't be allocated to jobs at a higher QOS.\n\n**Currently, all jobs run at** `high` **QOS regardless of this setting.**\n",
+            "enum": [
+              "high",
+              "medium",
+              "low",
+              "best-effort"
+            ]
+          },
+          "image": {
+            "type": "string",
+            "nullable": true,
+            "description": "File path of the image to execute for this job. Valid images provided by the /images API endpoints"
+          },
+          "command_line": {
+            "type": "string",
+            "nullable": true,
+            "description": "Command line that should be executed for this job. The command line should either call a binary existing within the image or execute a script that was included as input data. Shell built-ins or chained commands using |, ;, or && will not execute properly and should be run from within a script.\n"
+          },
+          "expected_run_time": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Best guess estimate by user as to how long the job will run in seconds. More accurate estimates will result in discounts to job cost. **Not currently used during beta test period.**"
+          },
+          "max_run_time": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 600,
+            "maximum": 2592000,
+            "default": 259200,
+            "description": "Maximum time to allow job to run in seconds."
+          },
+          "callback_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "Webhook URL to receive updates when job status changes. **Currently unimplemented.**"
+          },
+          "cost": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Cost of the completed job. Only available for jobs with a status of finished or error."
+          },
+          "memory_used": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Maxium memory used by the completed job. Only available for jobs with a status of finished or error."
+          },
+          "execution_time": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Compute time used by the completed job. Only available for jobs with a status of finished or error."
+          },
+          "exit_code": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Exit code returned by job. Only available for jobs with a status of finished or error."
+          },
+          "error_string": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "description": "Error string returned by job. Only available for jobs with a status of finished or error."
+          },
+          "resources": {
+            "type": "object",
+            "required": [
+              "core_count",
+              "gpu_count",
+              "memory"
+            ],
+            "properties": {
+              "node_exclusive": {
+                "type": "boolean",
+                "nullable": true,
+                "description": "Request that the job be given exclusive access to a compute node. The job will be allocated all available cores and all available memory. If a GPU type is also requested, all GPUs in the node will be allocated to the job as well."
+              },
+              "core_count": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 72,
+                "multipleOf": 2,
+                "default": 2,
+                "description": "Number of vCPUs to provision for job. Must be an even number. vCPUS and memory are currently allocated in 2:4 ratio. Requests will rounded up as necessary to meet this ratio. If node_exclusive is requested, this value becomes the minimum number required."
+              },
+              "gpu_count": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 8,
+                "description": "Number of GPUs to provision for job. Only required if a GPU type is specified. If node_exclusive is requested, this value becomes the minimum number required."
+              },
+              "memory": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 128,
+                "multipleof": 4,
+                "default": 4,
+                "description": "Memory in GB that the job requires. vCPUS and memory are currently allocated in 2:4 ratio. Requests will rounded up as necessary to meet this ratio. If node_exclusive is requested, this value becomes the minimum amount required."
+              },
+              "gpu": {
+                "type": "string",
+                "nullable": true,
+                "description": "Type of GPU to use for job. If not include, job will run on CPU only. Valid GPU types are available from the /resources/gpus API endpoint"
+              },
+              "scratch": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "mpi": {
+                "type": "boolean",
+                "nullable": true,
+                "description": "Is this an MPI job? If true, `core_count` and `memory` are no longer mandatory and will be ignored if specified. `tasks` and `mpi_type` are required parameters for MPI jobs. When an MPI job is run, it will be allocated enough entire nodes to satisfy the `tasks` and `tasks_per_node` requests."
+              },
+              "tasks": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "description": "The number of MPI tasks to run as part of this job. Tasks will be mapped to nodes based on the `tasks_per_node` attribute. Ignored if `mpi` is false or not set."
+              },
+              "tasks_per_node": {
+                "type": "integer",
+                "nullable": true,
+                "minimum": 1,
+                "default": 1,
+                "description": "The number of MPI tasks to schedule on each node allocated to the job. If not specified, one task per node will be scheduled resulting in exclusive allocation of `tasks` nodes. Ignored if `mpi` is false or not set."
+              },
+              "mpi_version": {
+                "type": "string",
+                "nullable": true,
+                "description": "Version of MPI to use for job. Valid MPI versions are available from the /resources/mpi API endpoint.  Ignored if `mpi` is false or not set."
+              }
+            }
+          },
+          "input_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/input_file_fields"
+            }
+          },
+          "output_fies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/output_file_fields"
+            }
+          },
+          "environment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/environment_variables"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "job": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/job_fields"
+          }
+        }
+      },
+      "job_request": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/job"
+          },
+          {
+            "$ref": "#/components/schemas/job_fields"
+          },
+          {
+            "type": "Empty JSON object",
+            "example": {}
+          },
+          {
+            "type": "Blank Body"
+          }
+        ]
+      },
+      "input_file": {
+        "type": "object",
+        "properties": {
+          "input_file": {
+            "$ref": "#/components/schemas/input_file_fields"
+          }
+        }
+      },
+      "file_upload": {
+        "type": "object",
+        "required": [
+          "checksum",
+          "upload_complete",
+          "chunks_received"
+        ],
+        "properties": {
+          "checksum": {
+            "type": "string",
+            "description": "MD5 checksum of the current request chunk"
+          },
+          "upload_complete": {
+            "type": "boolean",
+            "description": "Whether this chunk completes the upload. Will be false for 202 responses and true for 201 responses"
+          },
+          "chunks_received": {
+            "type": "array",
+            "description": "Array of chunk ranges already received including the current chunk\n\nEach chunk range is an array with the format [start_byte, end_byte]\n",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      },
+      "data_fields": {
+        "type": "object",
+        "description": "Details of the new Lancium Compute data item",
+        "required": [
+          "path",
+          "source_type",
+          "source",
+          "name",
+          "size"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "example": "datasets/tensorflow/vgg16_weights.npz",
+            "description": "The relative path to the new object (including the object's name).\n"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "file",
+              "data",
+              "data_recursive",
+              "url",
+              "directory"
+            ],
+            "description": "Indicates where the data item will originate from.\n\n'file' - A file that will be uploaded via the API\n\n'data' - Another file that is already in Lancium Compute data storage\n\n'data_recursive' - Another directory that is already in Lancium Compute data storage\n\n'url' - A file to be downloaded from the internet\n\n'directory' - A new directory to be created\n"
+          },
+          "source": {
+            "type": "string",
+            "nullable": true,
+            "description": "Indicates where the source location of the file is based on the 'source_type' field.\n\n'file' - name of the file being uploaded\n\n'data' - file path to the source file in Lancium Compute data storage\n\n'data_recursive' - file path to the source directory in Lancium Compute data storage\n\n'url' - url to download file from\n\n'directory' - name of the new directory\n\n**This field is only _strictly_ required for data files with a source_type of 'data','data_recursive', or 'url'**\n"
+          },
+          "size": {
+            "type": "integer",
+            "writeOnly": true,
+            "description": "The size in bytes of the file to be uploaded. **This field is only required (or valid) for data files with a source_type of 'file'**"
+          },
+          "force": {
+            "type": "boolean",
+            "writeOnly": true,
+            "description": "If an object already exists at the specified path, forcefully overwrite it."
+          }
+        },
+        "additionalProperties": false
+      },
+      "datum": {
+        "type": "object",
+        "properties": {
+          "datum": {
+            "$ref": "#/components/schemas/data_fields"
+          }
+        }
+      },
+      "data_item": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/data_fields"
+          },
+          {
+            "$ref": "#/components/schemas/datum"
+          }
+        ]
+      },
+      "image_fields": {
+        "type": "object",
+        "description": "Details of the new Lancium Compute execution image",
+        "required": [
+          "name",
+          "path",
+          "source_type"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "namespaced path for the image. Lancium provided images live in the 'lancium/' namespace. Used by jobs to indicate which execution environment they need.\n",
+            "example": "python2/pytorch/pytorch-1.0"
+          },
+          "name": {
+            "type": "string",
+            "description": "short name for the image\n",
+            "example": "Pytorch 1.0"
+          },
+          "description": {
+            "type": "string",
+            "description": "detailed information about image\n",
+            "example": "Pytorch 1.0 running on Python 2.7 with CUDA 8"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "singularity_file",
+              "singularity_image",
+              "docker_file",
+              "docker_image"
+            ],
+            "description": "Indicates the source this image is built from\n\n*'singularity_file'* - Image that will be built by the Lancium Compute grid based on a Singularity recipe file\n\n*'singularity_image'* - Image is based on a pre-built Singularity image.\n\n*'docker_file'* - Image that will be built by the Lancium Compute grid based on a Dockerfile\n\n*'docker_image'* - Image is based on a pre-built Docker image.\n\n*Not returned for Lancium provided images*\n"
+          },
+          "source_url": {
+            "type": "string",
+            "description": "URL to retrieve the build file or image from.\n\nValid for all source_types.\n\n**Mutually exclusive with 'size'.**\n\n*Not returned for Lancium provided images*\n"
+          },
+          "size": {
+            "type": "integer",
+            "writeOnly": true,
+            "description": "Size of the image that will be uploaded via PATCH.\n\n**Only valid for source_types of 'singularity_image' and 'docker_image'**\n\n**Mutually exclusive with 'source_url'.**\n"
+          },
+          "build_script": {
+            "type": "string",
+            "description": "Contents of the Singular recipe or Dockerfile that the image is to be built from.\n\n**Only valid for source_types of 'singularity_file' and 'docker_file'**\n\n*Not returned for Lancium provided images*\n"
+          },
+          "environment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/environment_variables"
+            }
+          },
+          "status": {
+            "type": "string",
+            "readOnly": true,
+            "enum": [
+              "created",
+              "building",
+              "ready",
+              "error"
+            ],
+            "description": "Status of the image within the Lancium Compute grid.\n\n*Only images in the 'ready' state can be used as a Job's execution environment.*\n"
+          },
+          "upload_complete": {
+            "type": "boolean",
+            "default": false,
+            "readOnly": true,
+            "description": "Indicates whether the system believes that this image has been fully uploaded.\n\n**only returned for images with source_types of 'singularity_image' and 'docker_image' that are being uploaded (i.e. provided a value for 'size')**\n"
+          },
+          "chunks_received": {
+            "type": "array",
+            "readOnly": true,
+            "description": "Array of byte ranges already received.\n\nEach byte range is an array with the format [start_byte, end_byte]\n\n**only returned for images with source_types of 'singularity_image' and 'docker_image' that are being uploaded (i.e. provided a value for 'size')**\n",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "build_ouput": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Log of any output produced during the image build process.\n\n*Only available for source_types of 'singularity_file' and 'docker_file'*\n\n*Not returned for Lancium provided images*\n"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Image creation date\n\n*Not returned for Lancium provided images*\n"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Image update date\n\n*Not returned for Lancium provided images*\n"
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "Image build date\n\n*Not returned for Lancium provided images*\n"
+          }
+        }
+      },
+      "image": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/image_fields"
+          }
+        }
+      },
+      "image_item": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/image_fields"
+          },
+          {
+            "$ref": "#/components/schemas/image"
+          }
+        ]
+      },
+      "image_list": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "namespaced path for the image. Lancium provided images live in the 'lancium/' namespace. Used by jobs to indicate which execution environment they need.\n",
+                  "example": "python2/pytorch/pytorch-1.0"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "short name for the image\n",
+                  "example": "Pytorch 1.0"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "detailed information about image\n",
+                  "example": "Pytorch 1.0 running on Python 2.7 with CUDA 8"
+                },
+                "status": {
+                  "type": "string",
+                  "readOnly": true,
+                  "enum": [
+                    "created",
+                    "building",
+                    "ready",
+                    "error"
+                  ],
+                  "description": "Status of the image within the Lancium Compute grid.\n\n*Only images in the 'ready' state can be used as a Job's execution environment.*\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "not_authorized": {
+        "description": "Unable to authenticate with the provided credentials",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "invalid_job": {
+        "description": "Unable to accept due to invalid job attributes",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "errors": {
+                  "type": "object",
+                  "properties": {
+                    "INVALID_ATTRIBUTE_NAME": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "description": "Text description of error in INVALID_ATTRIBUTE_NAME",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "errors": {
+                  "name": [
+                    "must be present"
+                  ],
+                  "qos": [
+                    "must be a valid value"
+                  ],
+                  "core_count": [
+                    "must be an integer"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "not_found": {
+        "description": "Requested object not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "unable_to_modify_job": {
+        "description": "Unable to perform on a job that has already been submitted",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "missing_content_length": {
+        "description": "Content-Length header not included in request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "checksum_mismatch": {
+        "description": "Checksum Mismatch",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "invalid_upload_type": {
+        "description": "Unable to upload that source type",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "bad_request": {
+        "description": "Unable to accept request as sent",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "no_permissions": {
+        "description": "No permissions on requested path",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "item_exists_or_not_running": {
+        "description": "Job not running or an item with the same name already exists at given location",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "no_directory_info": {
+        "description": "File path is a directory",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "file_download_or_directory": {
+        "description": "Success",
+        "headers": {
+          "X-Object-Type": {
+            "description": "Indicates whether the response represents a file or directory.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "file",
+                "directory"
+              ]
+            }
+          },
+          "X-File-Size": {
+            "description": "Size of the file in bytes. Only returned when {file-path} represents a file.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-Last-Modified": {
+            "description": "Timestamp of last modification date in Lancium Compute storage.  Only returned when {file-path} represents a file.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "x-Date-Created": {
+            "description": "Timestamp of creation date in Lancium Compute storage.  Only returned when {file-path} represents a file.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "contents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "item name"
+                      },
+                      "is_directory": {
+                        "type": "boolean",
+                        "description": "Whether the item is a directory or file"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "description": "size of the item in bytes. null for directories"
+                      },
+                      "modified": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Modification date of the item in ISO 8601 format"
+                      },
+                      "created": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Creation date of the item in ISO 8601 format"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "application/octet-stream": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "still_processing_download": {
+        "description": "Preparing Download",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "progress": {
+                  "type": "integer",
+                  "description": "Estimated percentage of file processing complete"
+                }
+              }
+            }
+          }
+        }
+      },
+      "no_content": {
+        "description": "No Content",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "partial_file_download": {
+        "description": "Partial Content",
+        "headers": {
+          "Content-Length": {
+            "description": "Size of the included range in bytes",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-Last-Modified": {
+            "description": "Timestamp of last modification date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "x-Date-Created": {
+            "description": "Timestamp of creation date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "Content-Range": {
+            "description": "The range of byte included in this response as well as the overall file size",
+            "schema": {
+              "type": "string",
+              "example": "bytes 200-1000/65432",
+              "externalDocs": {
+                "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range"
+              }
+            }
+          }
+        },
+        "content": {
+          "application/octet-stream": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "range_not_satisfiable": {
+        "description": "Range Not Satisfiable",
+        "headers": {
+          "Content-Range": {
+            "description": "The size extent of the requested file",
+            "schema": {
+              "type": "string",
+              "example": "bytes */65432",
+              "externalDocs": {
+                "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range"
+              }
+            }
+          }
+        }
+      },
+      "temporarily_unavailable": {
+        "description": "Requested path temporarily unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "unable_to_modify_completed_upload": {
+        "description": "Unable to modify an already completed uplaod",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "file_download": {
+        "description": "Success",
+        "headers": {
+          "X-File-Size": {
+            "description": "Size of the file in bytes",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-Last-Modified": {
+            "description": "Timestamp of last modification date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "x-Date-Created": {
+            "description": "Timestamp of creation date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "content": {
+          "application/octet-stream": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "item_exists": {
+        "description": "An item with the same name already exists at given file path",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error_array"
+            }
+          }
+        }
+      },
+      "unable_to_delete_non_empty_directory": {
+        "description": "Unable to delete a non-empty directory",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "file_info": {
+        "description": "No Content",
+        "headers": {
+          "X-File-Size": {
+            "description": "Size of the file in bytes",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-Last-Modified": {
+            "description": "Timestamp of last modification date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "x-Date-Created": {
+            "description": "Timestamp of creation date in Lancium Compute storage",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      },
+      "image_exists": {
+        "description": "Requested path conflicts with an existing image",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "content_length": {
+        "name": "Content-Length",
+        "in": "header",
+        "description": "Number of bytes sent in the current chunk",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "upload_offset": {
+        "name": "Upload-Offset",
+        "in": "header",
+        "description": "Byte offset of the current chunk in the file",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "upload_checksum": {
+        "name": "Upload-Checksum",
+        "in": "header",
+        "description": "Hexadecimal MD5 checksum of the current chunk",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "data_file_path": {
+        "name": "file-path",
+        "in": "path",
+        "description": "The relative path of the desired object",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "nullable": true,
+          "example": "datasets/tensorflow/vgg16_weights.npz"
+        },
+        "examples": {
+          "folder": {
+            "value": "datasets",
+            "summary": "A folder named 'datasets' in the root directory"
+          },
+          "file": {
+            "value": "datasets/tensorflow/vgg16_weights.npz",
+            "summary": "A file inside multiple folders"
+          }
+        }
+      },
+      "range": {
+        "name": "Range",
+        "in": "header",
+        "description": "The range of bytes to send from the requested file",
+        "schema": {
+          "type": "string",
+          "example": "bytes=200-1000",
+          "externalDocs": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range"
+          }
+        },
+        "examples": {
+          "normalRange": {
+            "value": "bytes=200-1000",
+            "summary": "A range of bytes"
+          },
+          "remainderOfFile": {
+            "value": "bytes=200-",
+            "summary": "A range starting at 200 bytes and going to the end of the file"
+          },
+          "lastXBytes": {
+            "value": "bytes=-200",
+            "summary": "The last 200 bytes of the file"
+          }
+        }
+      },
+      "image_file_path": {
+        "name": "image-path",
+        "in": "path",
+        "description": "The relative path of the image object",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "python2/pytorch/pytorch-1.0"
+        },
+        "examples": {
+          "folder": {
+            "value": "python2/pytorch/",
+            "summary": "An image folder"
+          },
+          "file": {
+            "value": "python2/pytorch/pytorch-1.0",
+            "summary": "An image inside a nested path"
+          }
+        }
+      }
+    }
+  }
+}
