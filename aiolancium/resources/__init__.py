@@ -16,5 +16,5 @@ for resource_group, actions in parser.get_actions().items():
     lancium_resources.append(
         dict(resource_name=resource_group, resource_class=resource_class)
     )
-# ToDo Eventuell Resource CLasses direct aus dem Parser.
+
 __all__ = ["lancium_resources"]

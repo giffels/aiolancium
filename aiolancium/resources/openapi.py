@@ -25,7 +25,6 @@ class OpenApiParser(object):
                         }
                     }
                 )
-        # ToDo Eventuell aufsplitten in verschiedene Funktionen
         return resources
 
     @property
