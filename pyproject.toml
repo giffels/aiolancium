@@ -38,6 +38,13 @@ black = "<=22.8.0"
 aioresponses = "^0.7.3"
 flake8-bugbear = "22.9.23"
 
+[tool.poetry.extras]
+test = [
+    "flake8",
+    "flake8-bugbear",
+    "black"
+]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
