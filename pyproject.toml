@@ -31,6 +31,10 @@ packages = [
 python = "^3.6.2"
 simple-rest-client = "0.5.4"  # version to support aiohttp, matching AsyncOpenStack client. client cannot be re-used with httpx.
 jsonref = "^1.0.0"
+flake8-bugbear = {version = "22.9.23", optional = true}
+black = {version = "<=22.8.0", optional = true}
+aioresponses = {version = "^0.7.3", optional = true}
+flake8 = {version = "^5.0.4", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^5.0.4"
