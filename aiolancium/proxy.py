@@ -60,13 +60,29 @@ class ResourceProxy(Proxy):
         # Split keyword arguments into pass through arguments the `BaseResource` object
         # is expecting, the parameters the API is expecting and put anything else into
         # the body of the API call
-        pass_through_kwargs = self.extract_kwargs(self.pass_through_kwargs, kwargs)
-        api_parameters = self.extract_kwargs(
-            self.resource.actions.get(method_name)["parameters"], kwargs
+        header_parameters = self.extract_kwargs(
+            self.resource.actions.get(method_name)["parameters"].get("header", []),
+            kwargs,
         )
+        content_type = self.resource.actions.get(method_name)["content-type"]
+        for header_parameter in (header_parameters, content_type):
+            kwargs.setdefault("headers", {}).update(header_parameter)
+
+        query_parameters = self.extract_kwargs(
+            self.resource.actions.get(method_name)["parameters"].get("query", []),
+            kwargs,
+        )
+        kwargs.setdefault("params", {}).update(query_parameters)
+
+        path_parameters = self.extract_kwargs(
+            self.resource.actions.get(method_name)["parameters"].get("path", []), kwargs
+        )
+
+        pass_through_kwargs = self.extract_kwargs(self.pass_through_kwargs, kwargs)
+
         awaitable_method = getattr(self.resource, method_name)
         return await awaitable_method(
-            *args, **pass_through_kwargs, **api_parameters, body=kwargs
+            *args, *(path_parameters.values()), **pass_through_kwargs, body=kwargs
         )
 
     def __getattr__(self, method_name: str):

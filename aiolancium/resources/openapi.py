@@ -20,7 +20,8 @@ class OpenApiParser(object):
                         self.get_operation_id(path, method): {
                             "url": self.get_substituted_path(path),
                             "method": method.upper(),
-                            "parameters": [],  # self.get_parameters(path, method),
+                            "content-type": self.get_content_type(path, method),
+                            "parameters": self.get_parameters(path, method),
                         }
                     }
                 )
@@ -41,17 +42,21 @@ class OpenApiParser(object):
         return self.get_method_detail(path, method, "operationId")
 
     def get_parameters(self, path, method):
+        return_parameters = {}
         try:
-            if method == "list_image":
-                print("openapi", self.get_method_detail(path, method, "parameters"))
-                # ToDo: Parse in-path and header parameters
-            return self.get_method_detail(path, method, "parameters")
+            for parameter in self.get_method_detail(path, method, "parameters"):
+                return_parameters.setdefault(parameter["in"], []).append(
+                    parameter["name"]
+                )
+            return return_parameters
         except KeyError:
-            return []
+            return return_parameters
 
     def get_content_type(self, path, method):
         for key in self.get_method_detail(path, method, "requestBody")["content"]:
-            return key
+            return {"Content-Type": key}
+        else:
+            return {}
 
     @staticmethod
     def get_resource_group(path):
