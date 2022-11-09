@@ -1,6 +1,9 @@
 [![Build Status](https://github.com/giffels/aiolancium/actions/workflows/unittests.yaml/badge.svg)](https://github.com/giffels/aiolancium/actions/workflows/unittests.yaml)
 [![Verification](https://github.com/giffels/aiolancium/actions/workflows/verification.yaml/badge.svg)](https://github.com/giffels/aiolancium/actions/workflows/verification.yaml)
 [![codecov](https://codecov.io/gh/giffels/aiolancium/branch/main/graph/badge.svg)](https://codecov.io/gh/giffels/aiolancium)
+[![Documentation Status](https://readthedocs.org/projects/aiolancium/badge/?version=latest)](https://aiolancium.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://badge.fury.io/py/aiolancium.svg)](https://badge.fury.io/py/aiolancium)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/aiolancium.svg?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/giffels/aiolancium/blob/master/LICENSE)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
