@@ -2,6 +2,7 @@ from aiolancium.auth import Authenticator
 
 from .utilities.utilities import run_async
 
+from time import time
 from unittest import TestCase
 
 from aioresponses import aioresponses
@@ -9,18 +10,22 @@ from aioresponses.compat import URL
 from aioresponses.core import RequestCall
 from aiohttp.client_exceptions import ClientResponseError
 
+import jwt
+
 
 class TestAuthenticator(TestCase):
     def setUp(self) -> None:
         self.auth = Authenticator(api_key="test123")
 
     def test_get_token(self):
+        test_token = f"Bearer {jwt.encode(dict(exp=int(time())), key='Test')}"
+
         with aioresponses() as m:
             m.post(
                 "https://portal.lancium.com/api/v1/access_tokens",
-                headers={"Authorization": "test_granted"},
+                headers={"Authorization": test_token},
             )
-            self.assertEqual(run_async(self.auth.get_token), "test_granted")
+            self.assertEqual(run_async(self.auth.get_token), test_token)
 
             self.assertDictEqual(  # check assert called with
                 m.requests,
@@ -45,12 +50,13 @@ class TestAuthenticator(TestCase):
             self.assertTrue("404" in str(se.exception))
 
     def test_is_token_valid(self):
+        test_token = f"Bearer {jwt.encode(dict(exp=int(time() + 120)), key='Test')}"
         self.assertFalse(self.auth.is_token_valid)
 
         with aioresponses() as m:
             m.post(
                 "https://portal.lancium.com/api/v1/access_tokens",
-                headers={"Authorization": "test_granted"},
+                headers={"Authorization": test_token},
             )
             run_async(self.auth.get_token)
 
