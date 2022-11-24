@@ -1,4 +1,5 @@
 import aiohttp
+import jwt
 from time import time
 
 
@@ -9,15 +10,22 @@ class Authenticator(object):
         self.token_expires_on = 0
         self._url = "https://portal.lancium.com/api/v1/access_tokens"
 
+    def get_expiry_date(self):
+        decoded_token = jwt.decode(
+            self.token.split()[1],  # token contains "Bearer <Token>"
+            algorithms=["HS256"],
+            options={"verify_signature": False},
+        )
+        return decoded_token["exp"]
+
     async def get_token(
         self,
     ) -> str:  # Should be replaced by async properties once available
         if not (self.token and self.is_token_valid):
-            token_request_time = time()
             async with aiohttp.ClientSession(raise_for_status=True) as session:
                 async with session.post(url=self._url, headers=self.data) as response:
                     self.token = response.headers.get("Authorization")
-                    self.token_expires_on = token_request_time + 3600
+                    self.token_expires_on = self.get_expiry_date()
         return self.token
 
     @property
