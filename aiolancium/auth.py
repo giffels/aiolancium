@@ -10,7 +10,7 @@ class Authenticator(object):
         self.token_expires_on = 0
         self._url = "https://portal.lancium.com/api/v1/access_tokens"
 
-    def get_expiry_date(self):
+    def get_expiry_date(self) -> int:
         decoded_token = jwt.decode(
             self.token.split()[1],  # token contains "Bearer <Token>"
             algorithms=["HS256"],
