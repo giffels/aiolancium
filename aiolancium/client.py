@@ -1,9 +1,6 @@
 from .auth import Authenticator
 from .proxy import ApiProxy
-from .resources import lancium_resources
 from .utilities.utilities import read_binary_chunks_from_file
-
-from simple_rest_client.api import API
 
 import os
 
@@ -12,20 +9,7 @@ class LanciumClient(object):
     def __init__(self, api_url: str, auth: Authenticator, timeout: int = 60) -> None:
         self.api_url = api_url
 
-        self.api_proxy = ApiProxy(
-            api=API(
-                api_root_url=self.api_url,
-                json_encode_body=False,
-                headers={
-                    "Accept": "application/json",
-                },
-                timeout=timeout,
-            ),
-            auth=auth,
-        )
-
-        for resource in lancium_resources:
-            self.api_proxy.add_resource(**resource)
+        self.api_proxy = ApiProxy(api_url=api_url, auth=auth, timeout=timeout)
 
     def __getattr__(self, item):
         return getattr(self.api_proxy, item)

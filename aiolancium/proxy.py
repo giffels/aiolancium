@@ -1,6 +1,7 @@
 from .auth import Authenticator
 from .decorator import AuthDecorator, ResponseDecorator
 from .interfaces import Proxy
+from .resources import lancium_resources
 
 from simple_rest_client.api import API
 from simple_rest_client.resource import BaseResource
@@ -15,9 +16,19 @@ import json
 
 
 class ApiProxy(Proxy):
-    def __init__(self, api: API, auth: Authenticator):
-        self.api = api
+    def __init__(self, api_url: str, auth: Authenticator, timeout: int):
+        self.api = API(
+            api_root_url=api_url,
+            json_encode_body=False,
+            headers={
+                "Accept": "application/json",
+            },
+            timeout=timeout,
+        )
         self.auth = auth
+
+        for resource in lancium_resources:
+            self.add_resource(**resource)
 
     def add_resource(
         self,
