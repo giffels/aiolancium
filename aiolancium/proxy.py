@@ -8,7 +8,8 @@ from simple_rest_client.resource import AsyncResource
 
 from functools import partial
 from inspect import signature
-from typing import Iterable
+from urllib.parse import quote_plus
+from typing import Dict, Iterable
 
 import json
 
@@ -70,9 +71,11 @@ class ResourceProxy(Proxy):
         for header_parameter in (header_parameters, content_type):
             kwargs.setdefault("headers", {}).update(header_parameter)
 
-        query_parameters = self.extract_kwargs(
-            self.resource.actions.get(method_name)["parameters"].get("query", []),
-            kwargs,
+        query_parameters = self.query_param_encode(
+            self.extract_kwargs(
+                self.resource.actions.get(method_name)["parameters"].get("query", []),
+                kwargs,
+            )
         )
         kwargs.setdefault("params", {}).update(query_parameters)
 
@@ -95,6 +98,10 @@ class ResourceProxy(Proxy):
 
     def __getattr__(self, method_name: str):
         return partial(self, method_name)
+
+    @staticmethod
+    def query_param_encode(parameters: Dict) -> Dict:
+        return {key: quote_plus(value) for key, value in parameters.items()}
 
     @staticmethod
     def extract_kwargs(keys: Iterable, kwargs):
