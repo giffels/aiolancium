@@ -10,6 +10,8 @@ from functools import partial
 from inspect import signature
 from typing import Iterable
 
+import json
+
 
 class ApiProxy(Proxy):
     def __init__(self, api: API, auth: Authenticator):
@@ -80,9 +82,15 @@ class ResourceProxy(Proxy):
 
         pass_through_kwargs = self.extract_kwargs(self.pass_through_kwargs, kwargs)
 
+        # Consider all other keyword arguments as method body and encode it properly
+        body = kwargs
+        if body and content_type["Content-Type"] == "application/json":
+            # JSON encode body if content type is application/json
+            body = json.dumps(body)
+
         awaitable_method = getattr(self.resource, method_name)
         return await awaitable_method(
-            *args, *(path_parameters.values()), **pass_through_kwargs, body=kwargs
+            *args, *(path_parameters.values()), **pass_through_kwargs, body=body
         )
 
     def __getattr__(self, method_name: str):
