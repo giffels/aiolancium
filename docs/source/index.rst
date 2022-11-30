@@ -11,6 +11,7 @@ Welcome to aiolancium's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   changelog
    Module Index <api/modules>
 
 aiolancium

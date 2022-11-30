@@ -1,0 +1,4 @@
+category: fixed
+summary: "Url encode the query parameters"
+description: |
+  The url query parameters are now url encoded

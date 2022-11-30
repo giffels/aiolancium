@@ -1,0 +1,4 @@
+category: changed
+summary: "Automatically encode method bodies according to content-type in open api"
+description: |
+  Automatically encode method bodies according to the content-type documented in the Open API documentation of Lancium

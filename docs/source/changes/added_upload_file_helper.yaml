@@ -1,0 +1,5 @@
+category: added
+summary: Add upload file helper to simplify file uploads
+description: |
+  A upload file helper has been added to simplify file uploads. It read binary data from local file and uploads it 
+  in 32MB chunks to Lancium

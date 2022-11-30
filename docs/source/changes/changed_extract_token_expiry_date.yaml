@@ -1,0 +1,4 @@
+category: changed
+summary: "Extract token expiry date from token itself"
+description: |
+  Extract token expiry date from token itself using pyJWT library

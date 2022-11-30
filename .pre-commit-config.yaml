@@ -14,3 +14,13 @@ repos:
     rev: 3.8.2
     hooks:
       - id: flake8
+-   repo: https://github.com/Matterminers/dev-tools
+    rev: "87c2435b377bd932acbcc1b619320d98e67b630a"
+    hooks:
+      -  id: changelog
+         args:
+          - docs/source/changes
+          - compile
+          - --output=docs/source/changelog.rst
+         additional_dependencies:
+          - PyYAML
