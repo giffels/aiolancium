@@ -1,6 +1,12 @@
 from functools import partial
 from hashlib import md5
 
+from typing import Iterable
+
+
+def extract_kwargs(keys: Iterable, kwargs):
+    return {key: kwargs.pop(key) for key in keys if key in kwargs}
+
 
 def get_method_name(arg):
     while isinstance(arg, partial):

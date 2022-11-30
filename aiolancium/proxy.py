@@ -2,6 +2,7 @@ from .auth import Authenticator
 from .decorator import AuthDecorator, ResponseDecorator
 from .interfaces import Proxy
 from .resources import lancium_resources
+from .utilities.utilities import extract_kwargs
 
 from simple_rest_client.api import API
 from simple_rest_client.resource import BaseResource
@@ -10,7 +11,7 @@ from simple_rest_client.resource import AsyncResource
 from functools import partial
 from inspect import signature
 from urllib.parse import quote_plus
-from typing import Dict, Iterable
+from typing import Dict
 
 import json
 
@@ -52,7 +53,7 @@ class ResourceProxy(Proxy):
         # Split keyword arguments into pass through arguments the `BaseResource` object
         # is expecting, the parameters the API is expecting and put anything else into
         # the body of the API call
-        header_parameters = self.extract_kwargs(
+        header_parameters = extract_kwargs(
             self.resource.actions.get(method_name)["parameters"].get("header", []),
             kwargs,
         )
@@ -61,18 +62,18 @@ class ResourceProxy(Proxy):
             kwargs.setdefault("headers", {}).update(header_parameter)
 
         query_parameters = self.query_param_encode(
-            self.extract_kwargs(
+            extract_kwargs(
                 self.resource.actions.get(method_name)["parameters"].get("query", []),
                 kwargs,
             )
         )
         kwargs.setdefault("params", {}).update(query_parameters)
 
-        path_parameters = self.extract_kwargs(
+        path_parameters = extract_kwargs(
             self.resource.actions.get(method_name)["parameters"].get("path", []), kwargs
         )
 
-        pass_through_kwargs = self.extract_kwargs(self.pass_through_kwargs, kwargs)
+        pass_through_kwargs = extract_kwargs(self.pass_through_kwargs, kwargs)
 
         # Consider all other keyword arguments as method body and encode it properly
         body = kwargs
@@ -91,7 +92,3 @@ class ResourceProxy(Proxy):
     @staticmethod
     def query_param_encode(parameters: Dict) -> Dict:
         return {key: quote_plus(value) for key, value in parameters.items()}
-
-    @staticmethod
-    def extract_kwargs(keys: Iterable, kwargs):
-        return {key: kwargs.pop(key) for key in keys if key in kwargs}
