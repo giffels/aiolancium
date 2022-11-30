@@ -2,6 +2,8 @@ from .auth import Authenticator
 from .proxy import ApiProxy
 from .utilities.utilities import read_binary_chunks_from_file
 
+from typing import Optional
+
 import os
 
 
@@ -13,6 +15,18 @@ class LanciumClient(object):
 
     def __getattr__(self, item):
         return getattr(self.api_proxy, item)
+
+    async def download_file_helper(
+        self, path: str, destination: str, job_id: Optional[int] = None
+    ):
+        if job_id:
+            # job output returned as string, needs to be converted into bytes first
+            content = (await self.jobs.download_job_output(job_id, path)).encode()
+        else:
+            content = await self.data.get_data(path)
+
+        with open(destination, "wb") as f:
+            f.write(content)
 
     async def upload_file_helper(self, path, source, force=True, chunk_size=32000000):
         file_size = os.path.getsize(source)
