@@ -2,3 +2,4 @@ category: added
 summary: "Added file download helper and support for asynchronous downloads"
 description: |
   Added file download helper and support for asynchronous downloads
+version: 0.2.0

@@ -1,5 +1,6 @@
 category: added
 summary: "Added support for get_file_info API call"
-description: |
-  The get_file_info API call is the only call that returns data via the header. The ResponseDecorator has been adjusted 
-  to automatically take this into account.
+description: "The get_file_info API call is the only call that returns data via the\
+  \ header. The ResponseDecorator has been adjusted \nto automatically take this into\
+  \ account.\n"
+version: 0.2.0

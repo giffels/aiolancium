@@ -2,3 +2,4 @@ category: fixed
 summary: "Url encode the query parameters"
 description: |
   The url query parameters are now url encoded
+version: 0.2.0
