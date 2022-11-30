@@ -46,14 +46,28 @@ await client.jobs.create_job(**job)
 # Show all your jobs and their status in Lancium compute
 jobs = await client.jobs.show_jobs()
 
+for job in jobs["jobs"]:
+    # Retrieve the stdout/stdin output of your finished jobs
+    await client.jobs.download_job_output(job["id"], "stdout.txt")
+    await client.jobs.download_job_output(job["id"], "stderr.txt")
+    
+    # or download them to disk
+    await client.download_file_helper("stdout.txt", "stdout.txt", job["id"])
+    await client.download_file_helper("stderr.txt", "stderr.txt", job["id"])
+
 # Delete all your jobs in Lancium compute
 for job in jobs["jobs"]:
     await client.jobs.delete_job(id=job["id"])
 ```
 
-In order to simplify file uploads to the Lancium compute platform, an upload helper method has been added to the client. 
-It takes care of reading a file in binary format and uploading it in 32 MB chunks (default) to the Lancium persistent 
-storage.  
+In order to simplify file uploads and downloads to/from the Lancium compute platform, an upload/download helper method 
+has been added to the client. 
+The upload helper takes care of reading a file in binary format and uploading it in 32 MB chunks (default) to the 
+Lancium persistent storage. The download helper downloads a file from the Lancium persistent storage to the local disks.
+The download helper also supports the download of jobs outputs (stdout.txt, stderr.txt) to local disk (see example 
+above).
+Unfortunately, streaming of data is not support by the underlying `simple-rest-client`. Thus, the entire file is 
+downloaded to memory before writing to the disk.
 
 ```python
 from aiolancium.auth import Authenticator
@@ -70,6 +84,9 @@ await client.upload_file_helper(path="test", source="/bin/bash")
 
 # Get information about the uploaded file
 await client.data.get_file_info("/test")
+
+# Download the file again
+await client.download_file_helper("/test", destination="test_downloaded_again")
 
 # Delete the uploaded file again, the 
 arg = {"file-path": "/test"}
