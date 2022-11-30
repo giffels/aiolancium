@@ -1,5 +1,3 @@
-from .auth import Authenticator
-from .decorator import AuthDecorator, ResponseDecorator
 from .interfaces import Proxy
 from .resources import lancium_resources
 from .utilities.utilities import extract_kwargs
@@ -17,7 +15,7 @@ import json
 
 
 class ApiProxy(Proxy):
-    def __init__(self, api_url: str, auth: Authenticator, timeout: int):
+    def __init__(self, api_url: str, timeout: int):
         self.api = API(
             api_root_url=api_url,
             json_encode_body=False,
@@ -26,7 +24,6 @@ class ApiProxy(Proxy):
             },
             timeout=timeout,
         )
-        self.auth = auth
 
         for resource in lancium_resources:
             self.api.add_resource(**resource)
@@ -35,10 +32,7 @@ class ApiProxy(Proxy):
         raise TypeError(f"{self.__class__.__name__} object is not callable!")
 
     def __getattr__(self, item):
-        return AuthDecorator(
-            ResponseDecorator((ResourceProxy(resource=getattr(self.api, item)))),
-            auth=self.auth,
-        )
+        return ResourceProxy(resource=getattr(self.api, item))
 
 
 class ResourceProxy(Proxy):

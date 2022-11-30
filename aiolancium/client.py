@@ -1,4 +1,5 @@
 from .auth import Authenticator
+from .decorator import AuthDecorator, ResponseDecorator
 from .proxy import ApiProxy
 from .utilities.utilities import read_binary_chunks_from_file
 
@@ -10,11 +11,13 @@ import os
 class LanciumClient(object):
     def __init__(self, api_url: str, auth: Authenticator, timeout: int = 60) -> None:
         self.api_url = api_url
-
-        self.api_proxy = ApiProxy(api_url=api_url, auth=auth, timeout=timeout)
+        self.auth = auth
+        self.api_proxy = ApiProxy(api_url=api_url, timeout=timeout)
 
     def __getattr__(self, item):
-        return getattr(self.api_proxy, item)
+        return AuthDecorator(
+            ResponseDecorator(getattr(self.api_proxy, item)), self.auth
+        )
 
     async def download_file_helper(
         self, path: str, destination: str, job_id: Optional[int] = None
