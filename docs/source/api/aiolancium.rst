@@ -14,6 +14,7 @@ Subpackages
 
    aiolancium.interfaces
    aiolancium.resources
+   aiolancium.utilities
 
 Submodules
 ----------
