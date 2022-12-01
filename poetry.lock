@@ -695,7 +695,7 @@ test = ["flake8", "flake8-bugbear", "black", "aioresponses"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.2"
-content-hash = "a48edfed5d2829401ca31509025786acc99c703f69629ab18406eb6b7a8e4feb"
+content-hash = "cb0f121ace7d3e973cdb69a709a486a282d9134dd5a78fd469cc3694160c871b"
 
 [metadata.files]
 aiohttp = [

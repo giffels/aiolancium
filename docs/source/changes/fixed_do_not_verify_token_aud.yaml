@@ -1,0 +1,5 @@
+category: fixed
+summary: "Do not verify the audience claim of the auth token"
+description: |
+  A verification of the audience claim caused error on pyjwt versions < 2.0.0, since it is not needed to check the 
+  expiry date, it has been disabled.

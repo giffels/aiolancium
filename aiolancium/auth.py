@@ -14,7 +14,7 @@ class Authenticator(object):
         decoded_token = jwt.decode(
             self.token.split()[1],  # token contains "Bearer <Token>"
             algorithms=["HS256"],
-            options={"verify_signature": False},
+            options={"verify_signature": False, "verify_aud": False},
         )
         return decoded_token["exp"]
 
