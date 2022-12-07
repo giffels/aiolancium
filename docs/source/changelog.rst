@@ -1,10 +1,18 @@
-.. Created by changelog.py at 2022-12-01, command
+.. Created by changelog.py at 2022-12-07, command
    '/Users/giffler/.cache/pre-commit/repor6pnmwlm/py_env-python3.10/bin/changelog docs/source/changes compile --output=docs/source/changelog.rst'
    based on the format of 'https://keepachangelog.com/'
 
 #########
 CHANGELOG
 #########
+
+[Unreleased] - 2022-12-07
+=========================
+
+Fixed
+-----
+
+* Fixed typo in the checksum header and wrong format of the upload body
 
 [0.2.1] - 2022-12-01
 ====================

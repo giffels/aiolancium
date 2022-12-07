@@ -23,7 +23,7 @@ def read_binary_chunks_from_file(file_name, chunk_size):
             headers = {
                 "Content-Length": str(read_bytes),
                 "Upload-Offset": str(current_chunk_start),
-                "Upload-Checksun": checksum,
+                "Upload-Checksum": checksum,
             }
             yield {"headers": headers, "body": chunk}
             current_chunk_start += read_bytes

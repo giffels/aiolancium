@@ -1,0 +1,5 @@
+category: fixed
+summary: "Fixed typo in the checksum header and wrong format of the upload body"
+description: |
+  A typo in the checksum headers has been fixed and this revealed a wrong format of the body for uploading files, which 
+  has been fixed now as well.

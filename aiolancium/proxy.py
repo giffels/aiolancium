@@ -69,8 +69,10 @@ class ResourceProxy(Proxy):
 
         pass_through_kwargs = extract_kwargs(self.pass_through_kwargs, kwargs)
 
-        # Consider all other keyword arguments as method body and encode it properly
-        body = kwargs
+        # Check if there is a dedicated body keyword argument, otherwise consider
+        # all other keyword arguments as method body and encode it properly
+        body = kwargs.get("body", kwargs)
+
         if body and content_type["Content-Type"] == "application/json":
             # JSON encode body if content type is application/json
             body = json.dumps(body)
