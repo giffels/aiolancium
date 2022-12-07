@@ -9,6 +9,11 @@ CHANGELOG
 [Unreleased] - 2022-12-07
 =========================
 
+Added
+-----
+
+* Added an helper method for uploading images to lancium
+
 Fixed
 -----
 

@@ -1,11 +1,9 @@
 from .auth import Authenticator
 from .decorator import AuthDecorator, ResponseDecorator
 from .proxy import ApiProxy
-from .utilities.utilities import read_binary_chunks_from_file
+from .utilities.utilities import upload_helper
 
 from typing import Optional
-
-import os
 
 
 class LanciumClient(object):
@@ -31,14 +29,26 @@ class LanciumClient(object):
         with open(destination, "wb") as f:
             f.write(content)
 
-    async def upload_file_helper(self, path, source, force=True, chunk_size=32000000):
-        file_size = os.path.getsize(source)
-
-        await self.data.create_data_item(
-            path=path, source_type="file", source=source, size=file_size, force=force
+    async def upload_image_helper(
+        self, path, source, name, source_type="singularity_image", chunk_size=32000000
+    ):
+        await upload_helper(
+            awaitable_create_method=self.images.create_image,
+            awaitable_upload_method=self.images.upload_image_file,
+            path=path,
+            source=source,
+            source_type=source_type,
+            chunk_size=chunk_size,
+            name=name,
         )
 
-        for chunk_data in read_binary_chunks_from_file(
-            file_name=source, chunk_size=chunk_size
-        ):
-            await self.data.upload_data_file(path, **chunk_data)
+    async def upload_file_helper(self, path, source, force=True, chunk_size=32000000):
+        await upload_helper(
+            awaitable_create_method=self.data.create_data_item,
+            awaitable_upload_method=self.data.upload_data_file,
+            path=path,
+            source=source,
+            source_type="file",
+            chunk_size=chunk_size,
+            force=force,
+        )
