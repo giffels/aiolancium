@@ -21,6 +21,8 @@ pip install aiolancium
 
 ## How to use aiolancium
 
+### Dealing with Jobs
+
 ```python
 from aiolancium.auth import Authenticator
 from aiolancium.client import LanciumClient
@@ -60,14 +62,20 @@ for job in jobs["jobs"]:
     await client.jobs.delete_job(id=job["id"])
 ```
 
+### Dealing with File Uploads
+
 In order to simplify file uploads and downloads to/from the Lancium compute platform, an upload/download helper method 
 has been added to the client. 
 The upload helper takes care of reading a file in binary format and uploading it in 32 MB chunks (default) to the 
 Lancium persistent storage. The download helper downloads a file from the Lancium persistent storage to the local disks.
 The download helper also supports the download of jobs outputs (stdout.txt, stderr.txt) to local disk (see example 
 above).
+
 Unfortunately, streaming of data is not support by the underlying `simple-rest-client`. Thus, the entire file is 
 downloaded to memory before writing to the disk.
+
+Depending on the internet connection and the chunk/file size, it can be reasonable to adjust the timeout parameter of 
+the `LanciumClient`.
 
 ```python
 from aiolancium.auth import Authenticator
@@ -77,7 +85,7 @@ from aiolancium.client import LanciumClient
 auth = Authenticator(api_key="<your_api_key>")
 
 # Initialise the actual client
-client = LanciumClient(api_url="https://portal.lancium.com/api/v1/", auth=auth)
+client = LanciumClient(api_url="https://portal.lancium.com/api/v1/", auth=auth, timeout=300)
 
 # Upload /bin/bash to /test on the Lancium persistent storage
 await client.upload_file_helper(path="test", source="/bin/bash")
@@ -94,4 +102,33 @@ await client.data.delete_data_item(**arg)
 
 # Alternative approach to delete the uploaded file
 await client.data.delete_data_item("/test")
+```
+
+### Dealing with Image Uploads
+
+In order to simplify image uploads to the Lancium compute platform, an upload image helper method 
+has been added to the client. 
+The upload helper takes care of reading a image in binary format and uploading it in 32 MB chunks (default) to the 
+Lancium persistent storage. Depending on the internet connection and the chunk size, it can be reasonable to adjust the
+timeout parameter of the `LanciumClient`.
+
+```python
+from aiolancium.auth import Authenticator
+from aiolancium.client import LanciumClient
+
+# Authenticate yourself against the API and refresh your token if necessary
+auth = Authenticator(api_key="<your_api_key>")
+
+# Initialise the actual client
+client = LanciumClient(api_url="https://portal.lancium.com/api/v1/", auth=auth, timeout=300)
+
+# Upload rockylinux8 to matterminers/rockylinux8 on the Lancium persistent storage
+await client.upload_image_helper(path="matterminers/rockylinux8", name="rockylinux8",
+                                 source="rockylinux8.sif", source_type="singularity_image")
+
+# Get information about the uploaded image incl. the status of it. Only image with status ready can be used
+await client.images.list_image("matterminers/rockylinux8")
+
+# Delete an image on the Lancium platform 
+await client.images.delete_image("matterminers/rockylinux8")
 ```
