@@ -3,3 +3,4 @@ summary: "Added an helper method for uploading images to lancium"
 description: |
   Added a helper method for uploading images to Lancium compute. Refactoring of the upload helper internals to avoid
   code duplication.
+version: 0.2.2
